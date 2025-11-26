@@ -82,6 +82,11 @@ def initialize_services():
     global audio_processor, drive_service, usage_tracker
 
     try:
+        # Validate required configuration
+        logger.info("Validating configuration...")
+        settings.validate_required_fields()
+        logger.info("✅ Configuration validated")
+
         # Initialize audio transcription processor
         audio_processor = AudioTranscriptionProcessor(
             gemini_api_key=settings.GEMINI_KEY,
@@ -100,6 +105,10 @@ def initialize_services():
         usage_tracker = UsageTracker(storage_path="./usage_data")
         logger.info("Usage tracker initialized")
 
+    except ValueError as ve:
+        # Configuration validation error - give helpful message
+        logger.error(f"\n{'='*60}\n⚠️  CONFIGURATION ERROR\n{'='*60}\n{str(ve)}\n{'='*60}")
+        raise
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
         raise

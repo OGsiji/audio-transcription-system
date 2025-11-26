@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # AI/ML Service Configuration
-    GEMINI_KEY: str
+    GEMINI_KEY: Optional[str] = None
     GEMINI_MODEL: str = "gemini-2.5-flash"
     GEMINI_TIMEOUT: int = 600
 
@@ -67,6 +67,14 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """Check if running in production mode"""
         return self.NODE_ENV.lower() == "production"
+
+    def validate_required_fields(self):
+        """Validate that required fields are set"""
+        if not self.GEMINI_KEY:
+            raise ValueError(
+                "GEMINI_KEY is required! Please set it in your .env file or environment variables.\n"
+                "Get your API key from: https://makersuite.google.com/app/apikey"
+            )
 
 
 
