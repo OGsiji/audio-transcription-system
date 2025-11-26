@@ -58,6 +58,7 @@ usage_tracker: Optional[UsageTracker] = None
 class TranscriptionRequest(BaseModel):
     """Request model for transcription"""
     google_drive_link: str
+    gemini_api_key: Optional[str] = None  # Optional - can also use global env var
     recursive: bool = True
     max_file_size_mb: Optional[int] = None
     output_dir: Optional[str] = None
@@ -305,55 +306,34 @@ async def get_metrics():
 @app.post("/transcribe", response_model=TranscriptionStatus)
 async def transcribe_audio(
     request: TranscriptionRequest,
-    background_tasks: BackgroundTasks,
-    authorization: Optional[str] = Header(
-        None,
-        description="Gemini API key. Format: 'Bearer YOUR_API_KEY' or just 'YOUR_API_KEY'",
-        example="Bearer AIzaSyC1234567890abcdefghijklmnop"
-    )
+    background_tasks: BackgroundTasks
 ):
     """
     Start audio transcription job from Google Drive folder
 
     **Authentication:**
-    - Option 1: Pass your Gemini API key in the Authorization header
-    - Option 2: Set GEMINI_KEY as environment variable (then header is optional)
-
-    **Example:**
-    ```
-    Authorization: Bearer AIzaSyC1234567890abcdefghijklmnop
-    ```
+    Provide your Gemini API key in one of two ways:
+    1. In the request body: `"gemini_api_key": "YOUR_KEY"`
+    2. As environment variable: `GEMINI_KEY=YOUR_KEY`
 
     Get your free API key at: https://makersuite.google.com/app/apikey
 
     Args:
-        request: TranscriptionRequest with Google Drive link and options
-        authorization: Gemini API key (with or without 'Bearer' prefix)
+        request: TranscriptionRequest with Google Drive link and API key
 
     Returns:
         TranscriptionStatus with job ID and status
     """
-    # Extract API key from Authorization header or use global key
-    gemini_api_key = settings.GEMINI_KEY
+    # Use API key from request body or fall back to global env var
+    gemini_api_key = request.gemini_api_key or settings.GEMINI_KEY
 
-    if authorization:
-        # Extract key from "Bearer YOUR_KEY" format (case-insensitive)
-        auth_value = authorization.strip()
-        if auth_value.lower().startswith("bearer "):
-            gemini_api_key = auth_value[7:].strip()
-        else:
-            gemini_api_key = auth_value
-
-        logger.info(f"Using API key from Authorization header (length: {len(gemini_api_key) if gemini_api_key else 0})")
-    elif settings.GEMINI_KEY:
-        logger.info("Using global GEMINI_KEY from environment")
-
-    # Validate that we have an API key
     if not gemini_api_key or len(gemini_api_key) < 10:
         raise HTTPException(
             status_code=401,
-            detail="GEMINI_KEY required. Provide via Authorization header (format: 'Bearer YOUR_KEY') or set as environment variable."
+            detail="GEMINI_KEY required. Provide 'gemini_api_key' in request body or set as environment variable."
         )
+
+    logger.info(f"Using {'request' if request.gemini_api_key else 'global'} API key")
 
     if not drive_service:
         raise HTTPException(

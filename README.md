@@ -121,8 +121,10 @@ python main.py
 # Start transcription
 curl -X POST http://localhost:8000/transcribe \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_GEMINI_KEY" \
-  -d '{"google_drive_link": "https://drive.google.com/drive/folders/YOUR_FOLDER_ID"}'
+  -d '{
+    "google_drive_link": "https://drive.google.com/drive/folders/YOUR_FOLDER_ID",
+    "gemini_api_key": "YOUR_GEMINI_KEY"
+  }'
 
 # Returns: {"job_id": "abc-123", "status": "queued", ...}
 
@@ -136,12 +138,14 @@ That's it! 🎉
 
 ### 1. Start Transcription Job
 
-**Option 1: Using Authorization Header (Recommended)**
+**Option 1: API Key in Request Body (Easiest)**
 ```bash
 curl -X POST "https://your-api.com/transcribe" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_GEMINI_API_KEY" \
-  -d '{"google_drive_link": "https://drive.google.com/drive/folders/YOUR_ID"}'
+  -d '{
+    "google_drive_link": "https://drive.google.com/drive/folders/YOUR_ID",
+    "gemini_api_key": "YOUR_GEMINI_API_KEY"
+  }'
 ```
 
 **Option 2: If GEMINI_KEY set as environment variable**
@@ -219,9 +223,12 @@ Response:
 
 **Two ways to provide your Gemini API key:**
 
-1. **Authorization Header (Recommended)** - Pass with each request
-   ```bash
-   -H "Authorization: Bearer YOUR_API_KEY"
+1. **Request Body (Easiest)** - Include in each request
+   ```json
+   {
+     "google_drive_link": "...",
+     "gemini_api_key": "YOUR_API_KEY"
+   }
    ```
 
 2. **Environment Variable** - Set once for all requests
@@ -355,7 +362,7 @@ Visit `http://localhost:8000/docs` for interactive API documentation.
 ## 🔍 Troubleshooting
 
 **"GEMINI_KEY is required"**
-- Provide via `Authorization: Bearer YOUR_KEY` header or set as environment variable
+- Provide in request body: `"gemini_api_key": "YOUR_KEY"` or set as environment variable
 
 **"No audio files found"**
 - Ensure Google Drive folder is publicly accessible
