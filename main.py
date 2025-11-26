@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, List, Dict
 
 import uvicorn
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -51,7 +51,6 @@ logger = logging.getLogger(__name__)
 
 # Initialize services
 monitor = KafkaMonitorService()
-audio_processor: Optional[AudioTranscriptionProcessor] = None
 drive_service: Optional[GoogleDriveService] = None
 usage_tracker: Optional[UsageTracker] = None
 
@@ -78,24 +77,20 @@ active_jobs: Dict[str, Dict] = {}
 
 
 def initialize_services():
-    """Initialize audio processor and Google Drive service"""
-    global audio_processor, drive_service, usage_tracker
+    """Initialize Google Drive service and usage tracker"""
+    global drive_service, usage_tracker
 
     try:
         # Validate required configuration
         logger.info("Validating configuration...")
-        settings.validate_required_fields()
-        logger.info("✅ Configuration validated")
+        settings.validate_required_fields(require_gemini_key=False)
 
-        # Initialize audio transcription processor
-        audio_processor = AudioTranscriptionProcessor(
-            gemini_api_key=settings.GEMINI_KEY,
-            model_name=settings.GEMINI_MODEL,
-            temp_dir=settings.TEMP_DIR,
-            cleanup_temp_files=settings.CLEANUP_TEMP_FILES,
-            max_chunk_size_mb=settings.MAX_CHUNK_SIZE_MB
-        )
-        logger.info("Audio transcription processor initialized")
+        if settings.GEMINI_KEY:
+            logger.info("✅ Global GEMINI_KEY configured")
+        else:
+            logger.info("⚠️  No global GEMINI_KEY - users must provide via Authorization header")
+
+        logger.info("✅ Configuration validated")
 
         # Initialize Google Drive service (no API key needed for public folders!)
         drive_service = GoogleDriveService()
@@ -119,23 +114,29 @@ async def process_transcription_job(
     drive_link: str,
     recursive: bool,
     max_file_size_mb: Optional[int],
-    output_dir: Optional[str]
+    output_dir: Optional[str],
+    gemini_api_key: str
 ):
     """Background task to process transcription job"""
     try:
         logger.info(f"Starting transcription job {job_id}")
         active_jobs[job_id]["status"] = "processing"
 
+        # Create audio processor with the provided API key
+        job_audio_processor = AudioTranscriptionProcessor(
+            gemini_api_key=gemini_api_key,
+            model_name=settings.GEMINI_MODEL,
+            temp_dir=settings.TEMP_DIR,
+            cleanup_temp_files=settings.CLEANUP_TEMP_FILES,
+            max_chunk_size_mb=settings.MAX_CHUNK_SIZE_MB
+        )
+
         # Extract folder ID from drive link
         folder_id = drive_service.extract_folder_id(drive_link)
 
-        # Setup directories
+        # Setup download directory
         download_dir = os.path.join(settings.DOWNLOAD_DIR, job_id)
-        transcription_output_dir = output_dir or os.path.join(
-            settings.OUTPUT_DIR, job_id
-        )
         os.makedirs(download_dir, exist_ok=True)
-        os.makedirs(transcription_output_dir, exist_ok=True)
 
         # List audio files first (don't download yet)
         logger.info(f"Listing audio files from folder {folder_id}")
@@ -167,36 +168,11 @@ async def process_transcription_job(
                 logger.info(f"Processing file {i}/{len(audio_file_list)}: {filename}")
                 active_jobs[job_id]["processed_files"] = i - 1
 
-                # Check if already transcribed (Smart Skip)
-                if audio_processor._is_already_transcribed(local_path, transcription_output_dir):
-                    logger.info(f"⏭️  Skipping already transcribed file: {filename}")
-
-                    # Load existing result
-                    try:
-                        existing_result = audio_processor._load_existing_transcription(
-                            local_path, transcription_output_dir
-                        )
-                        results.append({
-                            "file_path": local_path,
-                            "success": True,
-                            "result": existing_result,
-                            "skipped": True
-                        })
-                        continue
-                    except Exception as load_error:
-                        logger.warning(f"Failed to load existing transcription, will re-transcribe: {load_error}")
-
                 # Transcribe the file (already downloaded by gdown)
                 logger.info(f"🎤 Transcribing: {filename}")
-                result = audio_processor.transcribe_file(local_path)
+                result = job_audio_processor.transcribe_file(local_path)
 
-                # Save result
-                audio_processor._save_transcription_result(
-                    audio_path=local_path,
-                    result=result,
-                    output_dir=transcription_output_dir
-                )
-
+                # Store result directly (no file saving needed for API)
                 results.append({
                     "file_path": local_path,
                     "success": True,
@@ -213,13 +189,6 @@ async def process_transcription_job(
                     "error": str(file_error)
                 })
 
-        # Create combined transcript
-        if results:
-            try:
-                audio_processor._create_combined_transcript(results, transcription_output_dir)
-            except Exception as e:
-                logger.error(f"Failed to create combined transcript: {e}")
-
         # Update job status
         successful = sum(1 for r in results if r.get("success"))
         failed = len(results) - successful
@@ -229,7 +198,6 @@ async def process_transcription_job(
             "processed_files": len(results),
             "successful": successful,
             "failed": failed,
-            "output_dir": transcription_output_dir,
             "results": results
         })
 
@@ -288,8 +256,8 @@ async def health_check():
             "version": "3.0.0",
             "environment": environment,
             "services": {
-                "audio_processor": audio_processor is not None,
-                "google_drive": drive_service is not None
+                "google_drive": drive_service is not None,
+                "gemini_key_configured": settings.GEMINI_KEY is not None
             },
             "active_jobs": len(active_jobs)
         }
@@ -337,27 +305,40 @@ async def get_metrics():
 @app.post("/transcribe", response_model=TranscriptionStatus)
 async def transcribe_audio(
     request: TranscriptionRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    authorization: Optional[str] = Header(None)
 ):
     """
     Start audio transcription job from Google Drive folder
 
     Args:
         request: TranscriptionRequest with Google Drive link and options
+        authorization: Optional Authorization header with Gemini API key (format: "Bearer YOUR_API_KEY")
 
     Returns:
         TranscriptionStatus with job ID and status
     """
+    # Extract API key from Authorization header or use global key
+    gemini_api_key = settings.GEMINI_KEY
+
+    if authorization:
+        # Extract key from "Bearer YOUR_KEY" format
+        if authorization.startswith("Bearer "):
+            gemini_api_key = authorization[7:].strip()
+        else:
+            gemini_api_key = authorization.strip()
+
+    # Validate that we have an API key
+    if not gemini_api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="GEMINI_KEY required. Provide via Authorization header or set as environment variable."
+        )
+
     if not drive_service:
         raise HTTPException(
             status_code=503,
             detail="Google Drive service not configured"
-        )
-
-    if not audio_processor:
-        raise HTTPException(
-            status_code=503,
-            detail="Audio processor not configured"
         )
 
     try:
@@ -380,7 +361,8 @@ async def transcribe_audio(
             drive_link=request.google_drive_link,
             recursive=request.recursive,
             max_file_size_mb=request.max_file_size_mb,
-            output_dir=request.output_dir
+            output_dir=request.output_dir,
+            gemini_api_key=gemini_api_key
         )
 
         logger.info(f"Transcription job {job_id} queued")

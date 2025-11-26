@@ -32,8 +32,7 @@ class Settings(BaseSettings):
 
     # Directories
     TEMP_DIR: str = "/tmp/audio_processing"
-    DOWNLOAD_DIR: str = "./audio_downloads"
-    OUTPUT_DIR: str = "./transcriptions"
+    DOWNLOAD_DIR: str = "/tmp/audio_downloads"
 
     # Server Configuration
     SERVER_HOST: str = "0.0.0.0"
@@ -74,24 +73,18 @@ class Settings(BaseSettings):
         """Check if running in production mode"""
         return self.NODE_ENV.lower() == "production"
 
-    def validate_required_fields(self, require_gemini_key: bool = False):
+    def validate_required_fields(self, require_gemini_key: bool = True):
         """
         Validate that required fields are set
 
         Args:
-            require_gemini_key: If True, GEMINI_KEY must be set globally.
-                               If False (default), it can be provided per-request.
+            require_gemini_key: If True (default), GEMINI_KEY must be set as environment variable.
         """
         if require_gemini_key and not self.GEMINI_KEY:
             raise ValueError(
                 "GEMINI_KEY is required! Please set it in your .env file or environment variables.\n"
                 "Get your API key from: https://makersuite.google.com/app/apikey"
             )
-        # If GEMINI_KEY not set globally, just log a warning
-        elif not self.GEMINI_KEY:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info("GEMINI_KEY not set globally - will need to be provided per-request")
 
 
 
