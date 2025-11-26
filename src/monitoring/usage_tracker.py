@@ -40,13 +40,22 @@ class UsageTracker:
             storage_path: Directory to store usage data
         """
         self.storage_path = Path(storage_path)
-        self.storage_path.mkdir(parents=True, exist_ok=True)
-        self.usage_file = self.storage_path / "usage_log.json"
+
+        # Try to create directory, fall back to /tmp if permission denied
+        try:
+            self.storage_path.mkdir(parents=True, exist_ok=True)
+            self.usage_file = self.storage_path / "usage_log.json"
+        except PermissionError:
+            # Fall back to /tmp for environments with restricted permissions
+            logger.warning(f"Permission denied for {storage_path}, using /tmp/usage_data")
+            self.storage_path = Path("/tmp/usage_data")
+            self.storage_path.mkdir(parents=True, exist_ok=True)
+            self.usage_file = self.storage_path / "usage_log.json"
 
         # Load existing usage data
         self.usage_data = self._load_usage_data()
 
-        logger.info(f"UsageTracker initialized with storage at: {storage_path}")
+        logger.info(f"UsageTracker initialized with storage at: {self.storage_path}")
 
     def _load_usage_data(self) -> Dict:
         """Load usage data from file"""
