@@ -1,0 +1,32 @@
+# Core Framework
+fastapi==0.110.0
+uvicorn==0.22.0
+gunicorn==23.0.0
+pydantic==2.11.4
+pydantic-settings==2.7.1
+python-dotenv
+requests
+gdown
+
+# Google Gemini AI
+google-generativeai==0.8.4
+grpcio==1.71.0
+
+# Audio Processing
+pydub
+ffmpeg-python
+
+# Utilities
+setuptools
+tqdm==4.67.1
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.3
+
+# Optional: Keep for future use
+# confluent-kafka==2.8.0
+# boto3==1.36.13
+# botocore==1.36.13
+# slack_sdk==3.34.0
+# newrelic==10.12.0

@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Backend API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: audio-transcription-api
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_KEY=${GEMINI_KEY}
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MAX_AUDIO_SIZE_MB=${MAX_AUDIO_SIZE_MB:-200}
+      - CLEANUP_TEMP_FILES=${CLEANUP_TEMP_FILES:-true}
+    volumes:
+      - ./transcriptions:/app/transcriptions
+      - ./usage_data:/app/usage_data
+      - ./audio_downloads:/app/audio_downloads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy (Optional - for production)
+  nginx:
+    image: nginx:alpine
+    container_name: audio-transcription-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  transcriptions:
+  usage_data:
+  audio_downloads:
