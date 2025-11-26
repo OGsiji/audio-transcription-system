@@ -12,14 +12,20 @@ try:
 except ImportError:
     NEW_RELIC_AVAILABLE = False
 
-# load_dotenv()  # Explicitly load the .env file
-load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
+# Load .env file from project root (not from src/config/)
+project_root = Path(__file__).resolve().parent.parent.parent
+load_dotenv(dotenv_path=project_root / ".env")
 
 
 class Settings(BaseSettings):
     """
     Centralized configuration management using Pydantic
     """
+
+    # Model configuration for environment variable loading
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     # Google Drive Configuration (API Key for public folders)
     GOOGLE_DRIVE_API_KEY: Optional[str] = None
