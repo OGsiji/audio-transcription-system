@@ -110,6 +110,8 @@ class AudioTranscriptionProcessor:
         """
         Split audio file into chunks if it exceeds max size
 
+        **Memory-efficient:** Uses file size, not in-memory loading
+
         Args:
             audio_path: Path to audio file
 

@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     MAX_AUDIO_SIZE_MB: int = 200
     MAX_AUDIO_DURATION_SECONDS: int = 7200  # 2 hours
     SUPPORTED_AUDIO_FORMATS: str = "mp3,wav,m4a,aac,ogg,flac,opus"
-    MAX_CHUNK_SIZE_MB: int = 20  # Max chunk size for processing
+    MAX_CHUNK_SIZE_MB: int = 200  # Max chunk size - set high to avoid memory-intensive splitting
 
     # Processing Configuration
     CLEANUP_TEMP_FILES: bool = True
