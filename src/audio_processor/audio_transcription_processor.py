@@ -153,6 +153,20 @@ class AudioTranscriptionProcessor:
             logger.error(f"Failed to split audio: {e}")
             return [audio_path]
 
+    def _get_mime_type(self, audio_path: str) -> str:
+        """Get MIME type for audio file"""
+        ext = os.path.splitext(audio_path)[1].lower()
+        mime_types = {
+            '.mp3': 'audio/mpeg',
+            '.wav': 'audio/wav',
+            '.m4a': 'audio/mp4',
+            '.aac': 'audio/aac',
+            '.ogg': 'audio/ogg',
+            '.flac': 'audio/flac',
+            '.opus': 'audio/opus',
+        }
+        return mime_types.get(ext, 'audio/mpeg')
+
     def transcribe_audio_with_gemini(self, audio_path: str) -> Dict:
         """
         Transcribe audio using Google Gemini
@@ -167,8 +181,12 @@ class AudioTranscriptionProcessor:
             logger.info(f"Starting transcription for: {audio_path}")
             start_time = time.time()
 
-            # Upload audio file to Gemini
-            audio_file = genai.upload_file(audio_path)
+            # Get MIME type for the file
+            mime_type = self._get_mime_type(audio_path)
+            logger.info(f"Detected MIME type: {mime_type}")
+
+            # Upload audio file to Gemini with explicit MIME type
+            audio_file = genai.upload_file(audio_path, mime_type=mime_type)
             logger.info(f"Uploaded audio file: {audio_file.name}")
 
             # Wait for file to be processed
