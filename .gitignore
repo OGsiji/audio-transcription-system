@@ -4,39 +4,18 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual Environments
 venv/
-ENV/
+actenv/
 env/
-appenv/
-audenv/
-vendor/
+ENV/
+*.egg-info/
+dist/
+build/
 
-# Environment variables
+# Environment
 .env
 .env.local
-
-# Data directories
-transcriptions/
-audio_downloads/
-usage_data/
-*.log
+.env.*.local
 
 # IDE
 .vscode/
@@ -44,18 +23,29 @@ usage_data/
 *.swp
 *.swo
 *~
-.DS_Store
-.claude/
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+audio_downloads/
+transcriptions/
+usage_data/
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.ogg
+*.flac
+*.opus
+
+# Logs
+*.log
+logs/
 
 # Temporary files
-/tmp/
 *.tmp
 *.bak
-
-# Backup files
-backup-*.tar.gz
+*.backup
+.~*
