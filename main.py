@@ -61,7 +61,6 @@ class TranscriptionRequest(BaseModel):
     gemini_api_key: Optional[str] = None  # Optional - can also use global env var
     recursive: bool = True
     max_file_size_mb: Optional[int] = None
-    output_dir: Optional[str] = None
     to_book: bool = False  # If True, format transcripts as publishable book with chapters
     book_title: Optional[str] = None  # Title for the book (if to_book=True)
     author_name: Optional[str] = None  # Author name for the book
@@ -118,7 +117,6 @@ async def process_transcription_job(
     drive_link: str,
     recursive: bool,
     max_file_size_mb: Optional[int],
-    output_dir: Optional[str],
     gemini_api_key: str,
     to_book: bool = False,
     book_title: Optional[str] = None,
@@ -396,7 +394,6 @@ async def transcribe_audio(
             drive_link=request.google_drive_link,
             recursive=request.recursive,
             max_file_size_mb=request.max_file_size_mb,
-            output_dir=request.output_dir,
             gemini_api_key=gemini_api_key,
             to_book=request.to_book,
             book_title=request.book_title,
