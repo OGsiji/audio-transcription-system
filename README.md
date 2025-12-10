@@ -68,6 +68,41 @@ curl http://localhost:8000/transcribe/abc-123
 curl http://localhost:8000/transcribe/abc-123/results
 ```
 
+### Book Publishing Mode
+
+**Transform audio series into publishable books!**
+
+Perfect for:
+- Sermon series → Devotional books
+- Podcast episodes → Published anthology  
+- Conference talks → Conference proceedings
+- Lecture series → Educational textbooks
+- Workshop recordings → Training manuals
+- Interview series → Curated collections
+
+```bash
+curl -X POST http://localhost:8000/transcribe \
+  -H "Content-Type: application/json" \
+  -d '{
+    "google_drive_link": "https://drive.google.com/drive/folders/YOUR_FOLDER_ID",
+    "gemini_api_key": "YOUR_API_KEY",
+    "to_book": true,
+    "book_title": "Your Book Title Here",
+    "author_name": "Author Name"
+  }'
+```
+
+**What happens:**
+1. **Transcribes** all audio files
+2. **Cleans** the text - removes filler words (um, uh, you know), fixes grammar
+3. **Organizes** into chapters - one chapter per recording, in order
+4. **Generates** a foreword based on the series content
+5. **Extracts** key points and references from each chapter
+6. **Returns** book-ready structure you can edit and publish
+
+**Important:** The content is NOT summarized. The complete message is preserved and cleaned for readability.
+
+
 ## Response Format
 
 ```json

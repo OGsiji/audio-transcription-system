@@ -62,6 +62,9 @@ class TranscriptionRequest(BaseModel):
     recursive: bool = True
     max_file_size_mb: Optional[int] = None
     output_dir: Optional[str] = None
+    to_book: bool = False  # If True, format transcripts as publishable book with chapters
+    book_title: Optional[str] = None  # Title for the book (if to_book=True)
+    author_name: Optional[str] = None  # Author name for the book
 
 
 class TranscriptionStatus(BaseModel):
@@ -116,7 +119,10 @@ async def process_transcription_job(
     recursive: bool,
     max_file_size_mb: Optional[int],
     output_dir: Optional[str],
-    gemini_api_key: str
+    gemini_api_key: str,
+    to_book: bool = False,
+    book_title: Optional[str] = None,
+    author_name: Optional[str] = None
 ):
     """Background task to process transcription job"""
     try:
@@ -194,13 +200,42 @@ async def process_transcription_job(
         successful = sum(1 for r in results if r.get("success"))
         failed = len(results) - successful
 
-        active_jobs[job_id].update({
+        # If to_book is True, format transcripts into book structure
+        book_data = None
+        if to_book and successful > 0:
+            logger.info(f"Formatting {successful} transcripts into book format...")
+            try:
+                from src.audio_processor.book_formatter import BookFormatter
+
+                book_formatter = BookFormatter(
+                    gemini_api_key=gemini_api_key,
+                    model_name=settings.GEMINI_MODEL
+                )
+
+                book_data = book_formatter.format_series_to_book(
+                    transcripts=results,
+                    book_title=book_title or "Untitled Book",
+                    author_name=author_name or "Unknown Author"
+                )
+
+                logger.info(f"Book formatting completed: {book_data['total_chapters']} chapters")
+            except Exception as book_error:
+                logger.error(f"Failed to format book: {book_error}")
+                # Continue anyway - user still gets raw transcripts
+
+        job_result = {
             "status": "completed",
             "processed_files": len(results),
             "successful": successful,
             "failed": failed,
             "results": results
-        })
+        }
+
+        # Add book data if available
+        if book_data:
+            job_result["book"] = book_data
+
+        active_jobs[job_id].update(job_result)
 
         logger.info(
             f"Transcription job {job_id} completed: "
@@ -362,7 +397,10 @@ async def transcribe_audio(
             recursive=request.recursive,
             max_file_size_mb=request.max_file_size_mb,
             output_dir=request.output_dir,
-            gemini_api_key=gemini_api_key
+            gemini_api_key=gemini_api_key,
+            to_book=request.to_book,
+            book_title=request.book_title,
+            author_name=request.author_name
         )
 
         logger.info(f"Transcription job {job_id} queued")
