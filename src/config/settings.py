@@ -1,6 +1,7 @@
 import os
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 from dotenv import load_dotenv
 from pathlib import Path
 from typing import Optional
@@ -36,7 +37,7 @@ class Settings(BaseSettings):
 
     # Server Configuration
     SERVER_HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = Field(default=8000, validation_alias="PORT")  # Railway provides PORT env var
 
     # AI/ML Service Configuration
     GEMINI_KEY: Optional[str] = None
