@@ -76,7 +76,7 @@ class BookFormatter:
             )
             
             book['chapters'].append(chapter)
-            logger.info(f"Formatted chapter {idx}/{len(sorted_transcripts)}: {chapter['title']}")
+            logger.info(f"Formatted chapter {idx}/{len(sorted_transcripts)}: {chapter.get('chapter_title', f'Chapter {idx}')}")
         
         return book
     
