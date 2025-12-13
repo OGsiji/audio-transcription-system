@@ -460,18 +460,20 @@ async def get_transcription_results(job_id: str):
             detail=f"Job not completed. Current status: {job.get('status')}"
         )
 
-    return JSONResponse(
-        status_code=200,
-        content={
-            "job_id": job_id,
-            "status": job.get("status"),
-            "total_files": job.get("total_files"),
-            "successful": job.get("successful"),
-            "failed": job.get("failed"),
-            "output_dir": job.get("output_dir"),
-            "results": job.get("results", [])
-        }
-    )
+    response_data = {
+        "job_id": job_id,
+        "status": job.get("status"),
+        "total_files": job.get("total_files"),
+        "successful": job.get("successful"),
+        "failed": job.get("failed"),
+        "results": job.get("results", [])
+    }
+
+    # Add book data if available
+    if job.get("book"):
+        response_data["book"] = job.get("book")
+
+    return JSONResponse(status_code=200, content=response_data)
 
 
 @app.get("/jobs")
